@@ -1,0 +1,656 @@
+{
+ "cells": [
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# TP OMA 2: Stochastic first order methods"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## 1 - Linear regression"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "In this pratical exercise, we will train again a linear regression model as in TP1 but using stochastic first order methods as seen in the lectures.\n",
+    "\n",
+    "Recall the following:\n",
+    "\n",
+    "In general, linear regression model do not require to solve an optimization model as the solution can be derived by inverting the normal equations (if the problem has the right properties). However, in the large scale setting, the inversion of the system required in the normal equation is not possible and approximate solutions are computeed using first order methods.\n",
+    "\n",
+    "Given a matrix $A\\in\\mathbb{R}^{n\\times d}$ and $b\\in\\mathbb{R}^n$, we want to minimize the following objective function\n",
+    "\n",
+    "$$f(x)=\\frac{1}{2n}\\|Ax-b\\|^2=\\frac{1}{2n}\\displaystyle\\sum_{i=1}^n(a_i^\\top x -b_i)^2$$\n",
+    "\n",
+    "One can see the function $f$ is $\\mu$ strongly convex with $\\mu=\\lambda_{min}(\\nabla^2 f(x))=\\frac{1}{n}\\lambda_{min}(A^T A)$ and $L$ smooth with $L=\\lambda_{max}(\\nabla^2 f(x))=\\frac{1}{n}\\lambda_{max}(A^T A)$, since here the Hessian matrix is constant, independent of $x$.\n",
+    "\n",
+    "When $A^{T} A$ is invertible, which is the case here, then we have a simple closed form solution for (the unique) $x^* = \\text{argmin}_{x \\in \\mathbb{R}^d} f(x)$. Indeed, solving $\\nabla f(x^*) = 0$ leads to $x^* = (A^T A)^{-1} A^T b$. However when $n$ and $d$ are large (which is the case in modern \"big data\" problems), using this formula is prohibitively expensive from a computational viewpoint, hence the necessity of using first order optimization algorithms.\n",
+    "\n",
+    "In the examples used in the following, whenever possible, in order to exhibit the convergence rates, we will also compute $f(x^*)$ using the normal equations ($x^*=(A^T A)^{-1} A^T b$). \n",
+    "\n",
+    "Additionally, we will also consider regularized version of the least square problem in order to enforce some structure in the solution as seen in the lecture as well (ex: L1 regulatrisation for sparsity, L2 for robustness to data perturbation,...)."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "We will first load some useful packages:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "import numpy as np\n",
+    "import matplotlib.pyplot as plt\n",
+    "import math as math\n",
+    "import sklearn as sk\n",
+    "from sklearn.datasets import make_regression"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "### Generating data"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "In order to generate regression datasets, we will use a dataset generation function from the wellknown \\texttt{scikit-learn} machine learning python environment. The function documentation is available at  https://scikit-learn.org/stable/modules/generated/sklearn.datasets.make_regression.html.\n",
+    "\n",
+    "Create (by filling in the code below) a python function that will apply this function in order generate a datasets of $n$ samples of dimension $d$ (number of features).\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def generate_dataset(n,d):\n",
+    "    X,Y = make_regression(n, d, n_informative=100, bias=2, coef=False, noise=10.0)\n",
+    "    return X,Y"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "n=10000\n",
+    "d=10\n",
+    "\n",
+    "X,Y=generate_dataset(n,d)\n",
+    "print(\"X=\",X)\n",
+    "print(\"Y=\",Y)\n",
+    "\n",
+    "A = np.c_[np.ones(n), X]\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "### Computing $f(x^*)$"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def full_objective(Y, A, x):\n",
+    "    # Compute the least squares objective over the whole dataset\n",
+    "    return #TO DO"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "x_star = np.linalg.solve(A.T@A, A.T@Y)\n",
+    "best_objective = full_objective(Y, A, x_star)\n",
+    "print(\"f(x*) = \", best_objective)\n",
+    "print(x_star)\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "### Benchmark: gradient descent"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def gradient_regression(Y, A, x):\n",
+    "    \"\"\"\n",
+    "    Compute the gradient of the regression function for the entire dataset.\n",
+    "    \n",
+    "    :param Y: a numpy array of shape (n)\n",
+    "    :param A: a numpy array of shape (n, d)\n",
+    "    :param x: compute the gradient at these parameters, numpy array of shape (d)\n",
+    "    \n",
+    "    :return: gradient: numpy array of shape (d)\n",
+    "    \"\"\"\n",
+    "    \n",
+    "    grad = #TO DO\n",
+    "    return grad\n",
+    "\n",
+    "def gradient_descent(\n",
+    "        Y, \n",
+    "        A, \n",
+    "        initial_x, \n",
+    "        nmax, lr):\n",
+    "    \"\"\"\n",
+    "    Gradient Descent for Linear Least Squares problems.\n",
+    "    \n",
+    "    :param Y: numpy array of size (n)\n",
+    "    :param A: numpy array of size (n, d)\n",
+    "    :param initial_x: starting parameters, a numpy array of size (d)\n",
+    "    :param nmax: integer, number of iterations\n",
+    "    :param lr: learning rate=step size\n",
+    "    \n",
+    "    \n",
+    "    :return:\n",
+    "    - objectives, a list of loss values on the whole dataset, collected at the end of each pass over the dataset (epoch)\n",
+    "    - param_states, a list of parameter vectors, collected at the end of each pass over the dataset\n",
+    "    \"\"\"\n",
+    "    xs = [initial_x]  # parameters after each update \n",
+    "    objectives = []  # loss values after each update\n",
+    "    x = initial_x\n",
+    "    \n",
+    "    for epoch in range(nmax):\n",
+    "        grad = # TO DO\n",
+    "        # update x through the gradient update\n",
+    "        x = # TO DO\n",
+    "    \n",
+    "        # store x and objective\n",
+    "        xs.append(x.copy())\n",
+    "        objective = full_objective(Y, A, x)\n",
+    "        objectives.append(objective)\n",
+    "        print(\"GD({ep:04d}/{bi:04d}/{ti:04d}): objective = {l:10.2f}\".format(ep=epoch,\n",
+    "                      bi=epoch, ti=len(Y) - 1, l=objective))\n",
+    "    return objectives, xs\n",
+    "\n",
+    "import datetime\n",
+    "\n",
+    "# Define the parameters of the algorithm.\n",
+    "nmax = 100\n",
+    "lr=0.1\n",
+    "\n",
+    "# Initialization\n",
+    "x_initial = np.zeros(A.shape[1])\n",
+    "\n",
+    "# Start GD\n",
+    "start_time = datetime.datetime.now()\n",
+    "gd_objectives, gd_iterates = gradient_descent(\n",
+    "    Y, A, x_initial, nmax, lr)\n",
+    "end_time = datetime.datetime.now()\n",
+    "\n",
+    "# Print result\n",
+    "execution_time = (end_time - start_time).total_seconds()\n",
+    "print(\"GD: execution time={t:.3f} seconds\".format(t=execution_time))\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "### Stochastic gradient descent"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Let us first define the gradient function that will be used next in the descent algorithm."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def minibatch_gradient(Y_batch, A_batch, x):\n",
+    "    \"\"\"\n",
+    "    Compute a mini-batch stochastic gradient from a subset of `num_examples` from the dataset.\n",
+    "    \n",
+    "    :param Y_batch: a numpy array of shape (batch_size)\n",
+    "    :param A_batch: a numpy array of shape (batch_size, d)\n",
+    "    :param x: compute the mini-batch gradient at these parameters, numpy array of shape (d)\n",
+    "    \n",
+    "    :return: stoc_grad: numpy array of shape (d)\n",
+    "    \"\"\"\n",
+    "    \n",
+    "    stoc_grad = # TO DO\n",
+    "    return stoc_grad\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Using your gradient function, propose an implementation of the gradient descent to solve the linear regression problem."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def stoc_gradient_descent(\n",
+    "        Y, \n",
+    "        A, \n",
+    "        initial_x, \n",
+    "        nmax, lr, batch_size):\n",
+    "    \"\"\"\n",
+    "    Stochastic gradient descent for Linear Least Squares problems.\n",
+    "    \n",
+    "    :param Y: numpy array of size (n)\n",
+    "    :param A: numpy array of size (n, d)\n",
+    "    :param initial_x: starting parameters, a numpy array of size (d)\n",
+    "    :param nmax: integer, number of iterations\n",
+    "    :param lr: learning rate=step size\n",
+    "    :param batch_size: number of samples used for calculating the stochastic gradient \n",
+    "    \n",
+    "    \n",
+    "    :return:\n",
+    "    - objectives, a list of loss values on the whole dataset, collected at the end of each pass over the dataset (epoch)\n",
+    "    - param_states, a list of parameter vectors, collected at the end of each pass over the dataset\n",
+    "    \"\"\"\n",
+    "    xs = [initial_x]  # parameters after each update \n",
+    "    objectives = []  # loss values after each update\n",
+    "    x = initial_x\n",
+    "    \n",
+    "    for epoch in range(nmax):\n",
+    "        n=len(Y)\n",
+    "        \n",
+    "        stocgrad=# TO DO\n",
+    "        \n",
+    "        # update x through the gradient update\n",
+    "        x = # TO DO\n",
+    "    \n",
+    "        # store x and objective\n",
+    "        xs.append(x.copy())\n",
+    "        objective = full_objective(Y, A, x)\n",
+    "        objectives.append(objective)\n",
+    "        print(\"SGD({ep:04d}/{bi:04d}/{ti:04d}): objective = {l:10.2f}\".format(ep=epoch,\n",
+    "                      bi=epoch, ti=len(Y) - 1, l=objective))\n",
+    "    return objectives, xs"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Test now your SGD on the regression problem you have generated earlier. You may try several values for the step size and various type of step sizes (constant, diminishing)."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "scrolled": true
+   },
+   "outputs": [],
+   "source": [
+    "import datetime\n",
+    "\n",
+    "# Define the parameters of the algorithm.\n",
+    "nmax = 100\n",
+    "lr=0.05\n",
+    "batch_size=1\n",
+    "\n",
+    "# Initialization\n",
+    "x_initial = np.zeros(A.shape[1])\n",
+    "\n",
+    "# Start GD\n",
+    "start_time = datetime.datetime.now()\n",
+    "stocgd_objectives, stocgd_iterates = stoc_gradient_descent(\n",
+    "    Y, A, x_initial, nmax, lr,batch_size)\n",
+    "end_time = datetime.datetime.now()\n",
+    "\n",
+    "# Print result\n",
+    "execution_time = (end_time - start_time).total_seconds()\n",
+    "print(\"SGD: execution time={t:.3f} seconds\".format(t=execution_time))"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Let us now plot the convergence profile, i.e. $f(x_t) - f(x^*)$ with respect to the iteration $t$:\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "plt.title('Convergence rate gradient descent', fontsize = 20)\n",
+    "plt.loglog(gd_objectives - best_objective)\n",
+    "plt.xlabel('iteration t'  , fontsize = 20)\n",
+    "plt.ylabel(r'$f(x_t) - f(x^*)$', fontsize = 20)\n",
+    "plt.show()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Compare your results with the classic (full batch) gradient method."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## 2 - Support Vector Machine"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "In this section, we will implement a stochastic (sub)-gradient algorithm in order to solve the soft primal margin SVM training problem. Recall the problem:\n",
+    "$$\n",
+    "\\displaystyle \\min_{w,b} \\frac{1}{2}\\|w\\|^2 + C\\sum_{i=1}^{n} \\max\\{0,1-y_i(w^Tx_i+b)\\} \n",
+    "$$\n",
+    "where $C$ is a parameter. In the following, we will write $\\theta=(w,b)$ where $w=(\\theta_1,\\ldots,\\theta_d)$ and $b=\\theta_{d+1}$."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Let us first import libraries"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "import numpy as np\n",
+    "import matplotlib.pyplot as plt\n",
+    "import sklearn as sk\n",
+    "from sklearn.utils import shuffle"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Then define a function to generate two clusters of 2D data point that we will try to separate using the SVM. The number of points generated is a parameter of the function."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def generatedata2(n):\n",
+    "    # n must be an even integer\n",
+    "    np.random.seed(0)\n",
+    "    mean1, cov1, n1 = [1, 5], [[1,1],[1,2]], int(n/2)  # n/2 samples of class 1\n",
+    "    x1 = np.random.multivariate_normal(mean1, cov1, n1)\n",
+    "    y1 = np.ones(n1, dtype=np.int)\n",
+    "    mean2, cov2, n2 = [2.5, 2.5], [[1,0],[0,1]], int(n/2) # n/2 samples of class -1\n",
+    "    x2 = np.random.multivariate_normal(mean2, cov2, n2)\n",
+    "    y2 = -np.ones(n2, dtype=np.int)\n",
+    "    x = np.concatenate((x1, x2), axis=0) # concatenate the samples\n",
+    "    y = np.concatenate((y1, y2))\n",
+    "    x,y = shuffle(x,y)\n",
+    "    \n",
+    "    return [x,y]"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Let us now define a function that will plot the data and a function to plot the hyperplane (and the supporting hyperplanes) generated by the SVM and represented in the form of $\\theta=(w,b)$ (meaning $w^Tx+b=0$)."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def plotdata(x,y):\n",
+    "    for i in range(x.shape[0]):\n",
+    "        if y[i]==-1:\n",
+    "            cl='bo';\n",
+    "        else:\n",
+    "                cl='r+';\n",
+    "        plt.plot(x[i,0],x[i,1],cl);\n",
+    "    return\n",
+    "\n",
+    "def plothyperplane(w,b):\n",
+    "    xx=np.linspace(x[:,0].min(),x[:,0].max(),100);\n",
+    "    #print(xx)\n",
+    "    yy=(-b-w[0]*xx)/w[1];\n",
+    "    yy1=yy+1/np.linalg.norm(w);\n",
+    "    yy2=yy-1/np.linalg.norm(w);\n",
+    "    #print(yy)\n",
+    "    plt.plot(xx,yy,'k-')\n",
+    "    plt.plot(xx,yy1,'g-')\n",
+    "    plt.plot(xx,yy2,'g-')\n",
+    "    return"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Define first the function that computes the value of the SVM problem objective function at $\\theta$."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def SVMobjective(x,y,d,C,theta):\n",
+    "    return # to DO"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Define now a new function that will take as parameters a batch of samples $(x_i,y_i)_{i=1,\\ldots,batch_size}$ and return a stochastic subgradient of the objective function at $\\theta$ by considering only the terms of the batch. "
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def minibatch_subgrad_svm(x_batch,y_batch,d,C,theta):\n",
+    "    \n",
+    "    return # TO DO"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "Use the above function to implement the following svm_SGD algorithm:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def svm_SGD(x,y,d,C,theta,batch_size,lr,nmax):\n",
+    "    \n",
+    "    thetas = [theta]\n",
+    "    objectives = []\n",
+    "    for epoch in range(nmax):\n",
+    "        for iter in range(int(len(y)/batch_size)):\n",
+    "            indices = np.random.choice(n, batch_size, replace=True)\n",
+    "            SVMgrad=# TO DO\n",
+    "        \n",
+    "            # update x through the gradient update\n",
+    "            theta -= # TO DO\n",
+    "                \n",
+    "            # store x and objective\n",
+    "            thetas.append(theta.copy())\n",
+    "            objective=SVMobjective(x,y,d,C,theta)\n",
+    "            objectives.append(objective)\n",
+    "            print(\"SGD({ep:04d}/{bi:04d}/{ti:04d}): objective = {l:10.2f}\".format(ep=epoch,\n",
+    "                          bi=epoch, ti=len(y) - 1, l=objective))\n",
+    "    return objectives, thetas\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "plt.close(\"all\");\n",
+    "\n",
+    "d=2\n",
+    "n=1000\n",
+    "C=10\n",
+    "nmax=100\n",
+    "lr=0.01\n",
+    "batch_size=100\n",
+    "\n",
+    "[x,y]=generatedata2(n);\n",
+    "\n",
+    "plt.figure(0);\n",
+    "plotdata(x,y);\n",
+    "\n",
+    "theta_initial=np.empty([d+1])\n",
+    "theta_initial[:d]=np.zeros([2]);\n",
+    "theta_initial[d]=0\n",
+    "\n",
+    "obj=np.empty(nmax);\n",
+    "objectives, thetas = svm_SGD(x,y,d,C,theta_initial,batch_size,lr,nmax)\n",
+    "predict=np.empty(n);\n",
+    "w=thetas[-1][:d]\n",
+    "b=thetas[-1][d]\n",
+    "\n",
+    "error=0;\n",
+    "for j in range(n):\n",
+    "    predict[j]=np.sign(np.dot(x[j,:],w)+b);\n",
+    "    if y[j]!=predict[j]:\n",
+    "        error+=1;\n",
+    "plothyperplane(w,b);\n",
+    "\n",
+    "#error\n",
+    "training_error=error*100/n\n",
+    "print('Training error=',training_error)\n",
+    "\n",
+    "plt.figure(1);\n",
+    "plt.plot(range(len(objectives)),objectives)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "scrolled": true
+   },
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "Python 3 (ipykernel)",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.9.13"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 4
+}
