@@ -42,7 +42,8 @@ def gradient_descent(
         Y, 
         A, 
         initial_x, 
-        nmax, lr):
+        nmax, lr,
+        print_output=False):
     """
     Gradient Descent for Linear Least Squares problems.
     
@@ -70,8 +71,9 @@ def gradient_descent(
         xs.append(x.copy())
         objective = full_objective(Y, A, x)
         objectives.append(objective)
-        print("GD({ep:04d}/{bi:04d}/{ti:04d}): objective = {l:10.2f}".format(ep=epoch,
-                      bi=epoch, ti=len(Y) - 1, l=objective))
+        if print_output:
+            print("GD({ep:04d}/{bi:04d}/{ti:04d}): objective = {l:10.2f}".format(ep=epoch,
+                          bi=epoch, ti=len(Y) - 1, l=objective))
     return objectives, xs
 
 #####################################
@@ -83,7 +85,8 @@ def accelerated_gradient_descent(
         A, 
         initial_x,
         nmax,
-        lr=-1):
+        lr=-1,
+        print_output=False):
     """
     Gradient Descent for Linear Least Squares problems.
     
@@ -130,8 +133,9 @@ def accelerated_gradient_descent(
         objective = np.linalg.norm(Y - A.dot(x_new))**2
         objectives.append(objective)
         
-        print("AGD({ep:04d}/{bi:04d}/{ti:04d}): objective = {l:10.2f}".format(ep=epoch,
-                      bi=epoch, ti=len(Y) - 1, l=objective))
+        if print_output:
+            print("AGD({ep:04d}/{bi:04d}/{ti:04d}): objective = {l:10.2f}".format(ep=epoch,
+                          bi=epoch, ti=len(Y) - 1, l=objective))
         
         x_prev = x
         x = x_new
@@ -179,7 +183,8 @@ def subgradient_descent(
         Y, 
         A, 
         initial_x, 
-        nmax, lr, lbda):
+        nmax, lr, lbda,
+        print_output=False):
     """
     Subgradient Descent for Linear Least Squares problems.
     
@@ -211,8 +216,9 @@ def subgradient_descent(
         if objective<best_obj:
             best_obj=objective           
         objectives.append(best_obj)
-        print("GD({ep:04d}/{bi:04d}/{ti:04d}): objective = {l:10.2f}".format(ep=epoch,
-                      bi=epoch, ti=len(Y) - 1, l=best_obj))
+        if print_output:
+            print("GD({ep:04d}/{bi:04d}/{ti:04d}): objective = {l:10.2f}".format(ep=epoch,
+                          bi=epoch, ti=len(Y) - 1, l=best_obj))
     return objectives, xs
 
 
@@ -231,7 +237,8 @@ def prox_gradient_descent(
         Y, 
         A, 
         initial_x, 
-        nmax, lr,lbda):
+        nmax, lr,lbda,
+        print_output=False):
     """
     Gradient Descent for Linear Least Squares problems.
     
@@ -260,8 +267,9 @@ def prox_gradient_descent(
         xs.append(x.copy())
         objective = reg_objective(Y, A, x,lbda)
         objectives.append(objective)
-        print("GD({ep:04d}/{bi:04d}/{ti:04d}): objective = {l:10.2f}".format(ep=epoch,
-                      bi=epoch, ti=len(Y) - 1, l=objective))
+        if print_output:
+            print("GD({ep:04d}/{bi:04d}/{ti:04d}): objective = {l:10.2f}".format(ep=epoch,
+                          bi=epoch, ti=len(Y) - 1, l=objective))
     return objectives, xs
 
 
@@ -290,7 +298,8 @@ def stoc_gradient_descent(
         Y, 
         A, 
         initial_x, 
-        nmax, lr, batch_size):
+        nmax, lr, batch_size,
+        print_output=False):
     """
     Stochastic gradient descent for Linear Least Squares problems.
     
@@ -328,8 +337,9 @@ def stoc_gradient_descent(
         xs.append(x.copy())
         objective = full_objective(Y, A, x)
         objectives.append(objective)
-        print("SGD({ep:04d}/{bi:04d}/{ti:04d}): objective = {l:10.2f}".format(ep=epoch,
-                      bi=epoch, ti=len(Y) - 1, l=objective))
+        if print_output:
+            print("SGD({ep:04d}/{bi:04d}/{ti:04d}): objective = {l:10.2f}".format(ep=epoch,
+                          bi=epoch, ti=len(Y) - 1, l=objective))
     return objectives, xs
 
 
@@ -394,7 +404,7 @@ def minibatch_subgrad_svm(x_batch,y_batch,d,C,theta):
     return subgrad
 
 
-def svm_SGD(x,y,d,C,theta,batch_size,lr,nmax):
+def svm_SGD(x,y,d,C,theta,batch_size,lr,nmax, print_output=False):
     """
         Parameters:
         x (numpy.ndarray): Feature matrix.
@@ -427,6 +437,7 @@ def svm_SGD(x,y,d,C,theta,batch_size,lr,nmax):
             thetas.append(theta.copy())
             objective=SVMobjective(x,y,d,C,theta)
             objectives.append(objective)
-            print("SGD({ep:04d}/{bi:04d}/{ti:04d}): objective = {l:10.2f}".format(ep=epoch,
-                          bi=epoch, ti=len(y) - 1, l=objective))
+            if print_output:
+                print("SGD({ep:04d}/{bi:04d}/{ti:04d}): objective = {l:10.2f}".format(ep=epoch,
+                              bi=epoch, ti=len(y) - 1, l=objective))
     return objectives, thetas
