@@ -299,7 +299,7 @@ def stoc_gradient_descent(
         A, 
         initial_x, 
         nmax, lr, batch_size,
-        print_output=False):
+        print_output=False, replace = False):
     """
     Stochastic gradient descent for Linear Least Squares problems.
     
@@ -322,7 +322,7 @@ def stoc_gradient_descent(
     for epoch in range(nmax):
         n=len(Y)
         #randomly get a batch of data
-        indices = np.random.choice(n, batch_size, replace=False)
+        indices = np.random.choice(n, batch_size, replace=replace)
         Y_batch = Y[indices]
         A_batch = A[indices]
 
